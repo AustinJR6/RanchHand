@@ -10,6 +10,7 @@ import LivestockScreen from '../screens/LivestockScreen';
 import CropsScreen from '../screens/CropsScreen';
 import TasksScreen from '../screens/TasksScreen';
 import RecordsScreen from '../screens/RecordsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 export type RootTabParamList = {
   Dashboard: undefined;
@@ -17,6 +18,7 @@ export type RootTabParamList = {
   Crops: undefined;
   Tasks: undefined;
   Records: undefined;
+  Settings: undefined;
 };
 
 const Tab = createBottomTabNavigator<RootTabParamList>();
@@ -81,6 +83,15 @@ export default function AppNavigator() {
           options={{
             tabBarIcon: ({ color, size }) => (
               <MaterialCommunityIcons name="book-open-variant" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Settings"
+          component={SettingsScreen}
+          options={{
+            tabBarIcon: ({ color, size }) => (
+              <MaterialCommunityIcons name="cog" size={size} color={color} />
             ),
           }}
         />

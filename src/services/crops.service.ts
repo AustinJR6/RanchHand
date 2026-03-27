@@ -15,6 +15,13 @@ import { stripUndefined } from '../utils/firestore';
 
 const COLLECTION_NAME = 'crops';
 
+// Handles Firestore Timestamps, native Dates, and ISO strings
+const toMs = (val: any): number => {
+  if (val?.toDate) return val.toDate().getTime();
+  if (val instanceof Date) return val.getTime();
+  return new Date(val).getTime();
+};
+
 export class CropsService {
   /**
    * Add a new crop to the database
@@ -39,14 +46,12 @@ export class CropsService {
    */
   async getAllCrops(): Promise<Crop[]> {
     try {
-      const querySnapshot = await getDocs(
-        query(collection(db, COLLECTION_NAME), orderBy('plantedDate', 'desc'))
-      );
-
-      return querySnapshot.docs.map(doc => ({
+      const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+      const crops = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       })) as Crop[];
+      return crops.sort((a, b) => toMs(b.plantedDate) - toMs(a.plantedDate));
     } catch (error) {
       console.error('Error getting crops:', error);
       throw error;
@@ -54,22 +59,24 @@ export class CropsService {
   }
 
   /**
-   * Get active crops (planted, growing, harvesting)
+   * Get active crops (planted, growing, harvesting).
+   * Filters in memory to avoid requiring a Firestore composite index.
    */
   async getActiveCrops(): Promise<Crop[]> {
     try {
       const q = query(
         collection(db, COLLECTION_NAME),
-        where('status', 'in', ['planted', 'growing', 'harvesting']),
-        orderBy('plantedDate', 'desc')
+        where('status', 'in', ['planted', 'growing', 'harvesting'])
       );
 
       const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => ({
+      const crops = querySnapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data(),
       })) as Crop[];
+
+      // Sort by planted date descending in memory
+      return crops.sort((a, b) => toMs(b.plantedDate) - toMs(a.plantedDate));
     } catch (error) {
       console.error('Error getting active crops:', error);
       throw error;

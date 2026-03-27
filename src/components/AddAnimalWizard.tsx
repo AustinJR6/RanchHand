@@ -17,6 +17,7 @@ import { Animal, CarePlan } from '../types';
 import { geminiService } from '../services/openai';
 import { livestockService } from '../services/livestock.service';
 import { tasksService } from '../services/tasks.service';
+import { settingsService } from '../services/settings.service';
 
 interface AddAnimalWizardProps {
   visible: boolean;
@@ -84,10 +85,12 @@ export default function AddAnimalWizard({ visible, onDismiss, onSuccess }: AddAn
         details.additionalInfo = notes;
       }
 
+      const location = await settingsService.getLocation();
       const plan = await geminiService.generateCarePlan({
         type: 'animal',
         name: animalName,
         details,
+        location: location || undefined,
       });
 
       setCarePlan(plan);

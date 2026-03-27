@@ -54,7 +54,8 @@ export interface AIGeneratedTask {
   title: string;
   description: string;
   frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'seasonal' | 'once';
-  timing?: string; // e.g., "morning", "every 3 days"
+  timing?: string;
+  daysFromPlanting?: number; // days after planted/acquired date — used to anchor task due dates
   category: 'feeding' | 'watering' | 'cleaning' | 'health' | 'maintenance' | 'harvesting' | 'other';
 }
 

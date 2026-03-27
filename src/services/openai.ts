@@ -10,6 +10,8 @@ export interface CarePlanRequest {
   type: 'animal' | 'crop';
   name: string;
   details: Record<string, any>;
+  location?: string;    // geographic location e.g. "Highland, IL"
+  plantedDate?: string; // ISO date string, crops only
 }
 
 export interface CarePlanResponse {
@@ -61,12 +63,24 @@ class OpenAIService {
    * Returns structured tasks that are saved and scheduled automatically.
    */
   async generateCarePlan(request: CarePlanRequest): Promise<CarePlanResponse> {
-    const { type, name, details } = request;
+    const { type, name, details, location, plantedDate } = request;
+
+    const locationContext = location
+      ? `\nFarm location: ${location}. Use this to apply realistic local climate, frost dates, and seasonal timing.`
+      : '';
+
+    const plantedContext = plantedDate
+      ? `\nPlanting date: ${plantedDate}. All task dates must be calculated from this date.`
+      : '';
 
     const systemPrompt = `You are an expert farm management assistant for small family farms and homesteads.
 Respond ONLY with valid JSON — no markdown, no extra text.`;
 
-    const userPrompt = `A farmer is adding a new ${type} to their homestead and needs a comprehensive care plan.
+    const cropTaskNote = type === 'crop'
+      ? `\nIMPORTANT for crops: Each task MUST include a "daysFromPlanting" field — the number of days after the planting date when that task should occur or begin. Use realistic plant biology timelines (e.g. don't schedule harvest at day 0). For recurring tasks, daysFromPlanting is when the recurring series starts.`
+      : '';
+
+    const userPrompt = `A farmer is adding a new ${type} to their homestead and needs a comprehensive care plan.${locationContext}${plantedContext}${cropTaskNote}
 
 ${type === 'animal' ? 'Animal' : 'Crop'} Information:
 - Name: ${name}
@@ -80,7 +94,8 @@ Return a JSON object with this exact structure:
       "title": "Task name",
       "description": "What to do and how",
       "frequency": "daily|weekly|biweekly|monthly|seasonal|once",
-      "timing": "e.g. morning, every 3 days",
+      "timing": "human-readable timing, e.g. 'Day 1', 'Every 3 days starting week 2', '90 days after planting'",
+      "daysFromPlanting": 0,
       "category": "feeding|watering|cleaning|health|maintenance|harvesting|other"
     }
   ],
@@ -88,7 +103,7 @@ Return a JSON object with this exact structure:
   "warnings": ["Important caution if any"]
 }
 
-Include all essential care tasks. Focus on practical, actionable guidance for a beginner homesteader.`;
+Order tasks chronologically by daysFromPlanting. Include all essential care tasks from planting through harvest with realistic biological timelines.`;
 
     try {
       const text = await callOpenAI(

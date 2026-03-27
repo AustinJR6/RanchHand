@@ -16,6 +16,7 @@ import { Crop, CarePlan } from '../types';
 import { geminiService } from '../services/openai';
 import { cropsService } from '../services/crops.service';
 import { tasksService } from '../services/tasks.service';
+import { settingsService } from '../services/settings.service';
 
 interface AddCropWizardProps {
   visible: boolean;
@@ -87,10 +88,13 @@ export default function AddCropWizard({ visible, onDismiss, onSuccess }: AddCrop
         details.additionalInfo = notes;
       }
 
+      const location = await settingsService.getLocation();
       const plan = await geminiService.generateCarePlan({
         type: 'crop',
         name: cropName,
         details,
+        location: location || undefined,
+        plantedDate,
       });
 
       setCarePlan(plan);
@@ -124,11 +128,11 @@ export default function AddCropWizard({ visible, onDismiss, onSuccess }: AddCrop
 
       // Create tasks from the care plan
       if (carePlan && carePlan.tasks.length > 0) {
-        await tasksService.createTasksFromCarePlan(carePlan, {
-          type: 'crop',
-          id: cropId,
-          name: `${variety ? variety + ' ' : ''}${cropName}`,
-        });
+        await tasksService.createTasksFromCarePlan(
+          carePlan,
+          { type: 'crop', id: cropId, name: `${variety ? variety + ' ' : ''}${cropName}` },
+          new Date(plantedDate)
+        );
       }
 
       setStep('complete');

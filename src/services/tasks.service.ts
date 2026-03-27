@@ -202,38 +202,62 @@ export class TasksService {
   }
 
   /**
-   * Create tasks from AI-generated care plan
+   * Get all tasks related to a specific animal or crop by its Firestore ID.
+   */
+  async getTasksByRelatedId(relatedId: string): Promise<Task[]> {
+    try {
+      const q = query(
+        collection(db, COLLECTION_NAME),
+        where('relatedTo.id', '==', relatedId)
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Task[];
+    } catch (error) {
+      console.error('Error getting tasks by related id:', error);
+      return [];
+    }
+  }
+
+  /**
+   * Create tasks from AI-generated care plan.
+   * @param startDate  The planting date (crops) or acquisition date (animals).
+   *                   Used with daysFromPlanting to set realistic due dates.
    */
   async createTasksFromCarePlan(
     carePlan: any,
-    relatedTo: { type: 'animal' | 'crop'; id: string; name: string }
+    relatedTo: { type: 'animal' | 'crop'; id: string; name: string },
+    startDate?: Date
   ): Promise<string[]> {
     try {
       const taskIds: string[] = [];
+      const base = startDate || new Date();
 
       for (const aiTask of carePlan.tasks) {
+        const dueDate = this.calculateDueDate(aiTask.frequency, aiTask.daysFromPlanting, base);
+
         const task: Omit<Task, 'id' | 'createdAt' | 'updatedAt'> = {
           title: aiTask.title,
           description: aiTask.description,
           category: aiTask.category,
           relatedTo,
-          isRecurring: aiTask.frequency !== 'once',
-          frequency: aiTask.frequency !== 'once' ? aiTask.frequency : undefined,
+          isRecurring: aiTask.frequency !== 'once' && aiTask.frequency !== 'seasonal',
+          frequency: (aiTask.frequency !== 'once' && aiTask.frequency !== 'seasonal')
+            ? aiTask.frequency
+            : undefined,
           status: 'pending',
-          dueDate: this.calculateDueDate(aiTask.frequency),
+          dueDate,
         };
 
         const id = await this.addTask(task);
         taskIds.push(id);
 
-        // Auto-schedule a notification for this task
         notificationsService.autoScheduleForTask({
           id,
           title: aiTask.title,
           category: aiTask.category,
           frequency: aiTask.frequency,
-          dueDate: task.dueDate as Date,
-        }).catch(() => {}); // non-blocking, don't fail task creation if notification fails
+          dueDate,
+        }).catch(() => {});
       }
 
       return taskIds;
@@ -244,22 +268,27 @@ export class TasksService {
   }
 
   /**
-   * Calculate due date based on frequency
+   * Calculate a task's due date.
+   * For AI-generated tasks with daysFromPlanting, anchors to the start date.
+   * Falls back to simple frequency offsets when daysFromPlanting is absent.
    */
-  private calculateDueDate(frequency: string): Date {
-    const now = new Date();
+  private calculateDueDate(frequency: string, daysFromPlanting?: number, startDate?: Date): Date {
+    const base = startDate ? new Date(startDate) : new Date();
 
+    if (daysFromPlanting !== undefined && daysFromPlanting >= 0) {
+      const date = new Date(base);
+      date.setDate(date.getDate() + daysFromPlanting);
+      return date;
+    }
+
+    // Fallback for animals or missing daysFromPlanting
+    const now = new Date();
     switch (frequency) {
-      case 'daily':
-        return now;
-      case 'weekly':
-        return new Date(now.setDate(now.getDate() + 7));
-      case 'biweekly':
-        return new Date(now.setDate(now.getDate() + 14));
-      case 'monthly':
-        return new Date(now.setMonth(now.getMonth() + 1));
-      default:
-        return now;
+      case 'daily':   return now;
+      case 'weekly':  return new Date(new Date().setDate(now.getDate() + 7));
+      case 'biweekly':return new Date(new Date().setDate(now.getDate() + 14));
+      case 'monthly': return new Date(new Date().setMonth(now.getMonth() + 1));
+      default:        return now;
     }
   }
 }

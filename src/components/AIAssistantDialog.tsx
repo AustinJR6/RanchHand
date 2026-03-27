@@ -15,6 +15,7 @@ import { livestockService } from '../services/livestock.service';
 import { cropsService } from '../services/crops.service';
 import { tasksService } from '../services/tasks.service';
 import { notificationsService } from '../services/notifications.service';
+import { settingsService } from '../services/settings.service';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -146,36 +147,40 @@ async function executeTool(
 
     case 'add_crop': {
       const today = new Date().toISOString().split('T')[0];
+      const plantedDateStr = args.planted_date || today;
+      const plantedDate = new Date(plantedDateStr);
+      const userLocation = await settingsService.getLocation();
+
       const cropId = await cropsService.addCrop({
         name: args.name,
         variety: args.variety,
         location: args.location,
-        plantedDate: new Date(args.planted_date || today),
+        plantedDate,
         status: 'planted',
         quantity: args.quantity,
         quantityUnit: args.quantity_unit,
         notes: args.notes,
       });
 
-      // Generate care plan and create tasks
       const carePlan = await openaiService.generateCarePlan({
         type: 'crop',
         name: args.name,
         details: {
           variety: args.variety || 'Not specified',
           location: args.location,
-          plantedDate: args.planted_date || today,
           ...(args.notes ? { additionalInfo: args.notes } : {}),
         },
+        location: userLocation || undefined,
+        plantedDate: plantedDateStr,
       });
 
       await cropsService.updateCrop(cropId, { aiGeneratedPlan: carePlan });
 
-      const taskIds = await tasksService.createTasksFromCarePlan(carePlan, {
-        type: 'crop',
-        id: cropId,
-        name: args.variety ? `${args.variety} ${args.name}` : args.name,
-      });
+      const taskIds = await tasksService.createTasksFromCarePlan(
+        carePlan,
+        { type: 'crop', id: cropId, name: args.variety ? `${args.variety} ${args.name}` : args.name },
+        plantedDate
+      );
 
       onDataChanged?.();
       return JSON.stringify({
@@ -201,6 +206,7 @@ async function executeTool(
       });
 
       const displayName = args.custom_type || args.type;
+      const userLocation = await settingsService.getLocation();
       const carePlan = await openaiService.generateCarePlan({
         type: 'animal',
         name: displayName,
@@ -210,15 +216,16 @@ async function executeTool(
           purpose: 'Small homestead',
           ...(args.notes ? { additionalInfo: args.notes } : {}),
         },
+        location: userLocation || undefined,
       });
 
       await livestockService.updateAnimal(animalId, { aiGeneratedPlan: carePlan });
 
-      const taskIds = await tasksService.createTasksFromCarePlan(carePlan, {
-        type: 'animal',
-        id: animalId,
-        name: args.breed ? `${args.breed} ${displayName}` : displayName,
-      });
+      const taskIds = await tasksService.createTasksFromCarePlan(
+        carePlan,
+        { type: 'animal', id: animalId, name: args.breed ? `${args.breed} ${displayName}` : displayName },
+        new Date()
+      );
 
       onDataChanged?.();
       return JSON.stringify({
