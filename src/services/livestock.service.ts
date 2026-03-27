@@ -7,14 +7,18 @@ import {
   getDocs,
   query,
   where,
-  orderBy,
-  Timestamp
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import { Animal, Chicken } from '../types';
+import { Animal } from '../types';
 import { stripUndefined } from '../utils/firestore';
 
 const COLLECTION_NAME = 'livestock';
+
+const toMs = (val: any): number => {
+  if (val?.toDate) return val.toDate().getTime();
+  if (val instanceof Date) return val.getTime();
+  return new Date(val).getTime();
+};
 
 export class LivestockService {
   /**
@@ -40,14 +44,9 @@ export class LivestockService {
    */
   async getAllAnimals(): Promise<Animal[]> {
     try {
-      const querySnapshot = await getDocs(
-        query(collection(db, COLLECTION_NAME), orderBy('createdAt', 'desc'))
-      );
-
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Animal[];
+      const querySnapshot = await getDocs(collection(db, COLLECTION_NAME));
+      const animals = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Animal[];
+      return animals.sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
     } catch (error) {
       console.error('Error getting animals:', error);
       throw error;
@@ -82,18 +81,10 @@ export class LivestockService {
    */
   async getActiveAnimals(): Promise<Animal[]> {
     try {
-      const q = query(
-        collection(db, COLLECTION_NAME),
-        where('status', '==', 'active'),
-        orderBy('createdAt', 'desc')
-      );
-
+      const q = query(collection(db, COLLECTION_NAME), where('status', '==', 'active'));
       const querySnapshot = await getDocs(q);
-
-      return querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Animal[];
+      const animals = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Animal[];
+      return animals.sort((a, b) => toMs(b.createdAt) - toMs(a.createdAt));
     } catch (error) {
       console.error('Error getting active animals:', error);
       throw error;
