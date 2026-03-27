@@ -12,6 +12,7 @@ import {
 import { db } from '../config/firebase';
 import { Task } from '../types';
 import { notificationsService } from './notifications.service';
+import { stripUndefined } from '../utils/firestore';
 
 const COLLECTION_NAME = 'tasks';
 
@@ -23,7 +24,7 @@ export class TasksService {
     try {
       const now = new Date();
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-        ...task,
+        ...stripUndefined(task),
         createdAt: now,
         updatedAt: now,
       });

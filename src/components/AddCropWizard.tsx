@@ -294,6 +294,8 @@ export default function AddCropWizard({ visible, onDismiss, onSuccess }: AddCrop
         </Card>
       )}
 
+      {error && <Paragraph style={styles.error}>{error}</Paragraph>}
+
       <Button
         mode="contained"
         onPress={handleSaveCrop}

@@ -293,6 +293,8 @@ export default function AddAnimalWizard({ visible, onDismiss, onSuccess }: AddAn
         </Card>
       )}
 
+      {error && <Paragraph style={styles.error}>{error}</Paragraph>}
+
       <Button
         mode="contained"
         onPress={handleSaveAnimal}

@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Animal, Chicken } from '../types';
+import { stripUndefined } from '../utils/firestore';
 
 const COLLECTION_NAME = 'livestock';
 
@@ -23,7 +24,7 @@ export class LivestockService {
     try {
       const now = new Date();
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-        ...animal,
+        ...stripUndefined(animal),
         createdAt: now,
         updatedAt: now,
       });

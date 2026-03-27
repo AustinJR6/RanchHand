@@ -11,6 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { Crop } from '../types';
+import { stripUndefined } from '../utils/firestore';
 
 const COLLECTION_NAME = 'crops';
 
@@ -22,7 +23,7 @@ export class CropsService {
     try {
       const now = new Date();
       const docRef = await addDoc(collection(db, COLLECTION_NAME), {
-        ...crop,
+        ...stripUndefined(crop),
         createdAt: now,
         updatedAt: now,
       });
