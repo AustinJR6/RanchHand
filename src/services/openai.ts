@@ -216,7 +216,6 @@ Return JSON: { "offsetMinutes": <number 15-120>, "reason": "<brief explanation>"
       };
     }
   }
-}
 
   /**
    * Run an agentic chat turn with function calling support.
