@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, ScrollView, StyleSheet, RefreshControl, TouchableOpacity } from 'react-native';
 import {
   FAB,
   Card,
@@ -18,6 +18,24 @@ import { livestockService } from '../services/livestock.service';
 import { tasksService } from '../services/tasks.service';
 import { Animal, Task } from '../types';
 
+// ─── Theme ────────────────────────────────────────────────────────────────────
+
+const R = {
+  bg:        '#F2EAD3',
+  card:      '#FFFBF2',
+  cardBorder:'#DDD0B3',
+  titleDark: '#3E2723',
+  titleMid:  '#5D4037',
+  textMid:   '#6D4C41',
+  textLight: '#8D6E63',
+  divider:   '#D7CCC8',
+  green:     '#558B2F',
+  amber:     '#F57F17',
+  red:       '#C62828',
+  fabBg:     '#5D4037',
+  expandTxt: '#795548',
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const toDate = (val: any): Date => {
@@ -34,16 +52,16 @@ const ANIMAL_ICONS: Record<string, string> = {
 };
 
 const ANIMAL_COLORS: Record<string, string> = {
-  chicken: '#FF8F00',
-  goat:    '#6D4C41',
-  cow:     '#455A64',
-  other:   '#546E7A',
+  chicken: '#E65100',
+  goat:    '#5D4037',
+  cow:     '#546E7A',
+  other:   '#6D4C41',
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  active:   '#4CAF50',
-  sold:     '#9E9E9E',
-  deceased: '#F44336',
+  active:   '#558B2F',
+  sold:     '#8D6E63',
+  deceased: '#C62828',
 };
 
 function daysSinceAcquired(dateAcquired: any): number {
@@ -74,20 +92,20 @@ interface AnimalCardProps {
 function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
   const [expanded, setExpanded] = useState(false);
 
-  const completed  = tasks.filter(t => t.status === 'completed').length;
-  const total      = tasks.length;
-  const now        = new Date();
-  const overdue    = tasks.filter(t => {
+  const completed = tasks.filter(t => t.status === 'completed').length;
+  const total     = tasks.length;
+  const now       = new Date();
+  const overdue   = tasks.filter(t => {
     if (t.status !== 'pending' || !t.dueDate) return false;
     return toDate(t.dueDate) < now;
   }).length;
-  const progress   = total > 0 ? completed / total : 0;
+  const progress = total > 0 ? completed / total : 0;
 
   const acquiredDate = toDate(animal.dateAcquired);
   const days         = daysSinceAcquired(animal.dateAcquired);
   const displayName  = `${animal.breed ? animal.breed + ' ' : ''}${animal.name || animal.type}`;
   const iconName     = ANIMAL_ICONS[animal.type] ?? 'paw';
-  const iconColor    = ANIMAL_COLORS[animal.type] ?? '#546E7A';
+  const iconColor    = ANIMAL_COLORS[animal.type] ?? R.textMid;
 
   const upcomingTasks = tasks
     .filter(t => t.status === 'pending')
@@ -105,10 +123,10 @@ function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
           <View style={styles.cardTitleBlock}>
             <Text variant="titleMedium" style={styles.animalName}>{displayName}</Text>
             <View style={styles.tagRow}>
-              <Chip compact style={[styles.typeChip, { backgroundColor: iconColor }]} textStyle={styles.chipText}>
+              <Chip compact style={[styles.chip, { backgroundColor: iconColor }]} textStyle={styles.chipText}>
                 {animal.type}
               </Chip>
-              <Chip compact style={[styles.statusChip, { backgroundColor: STATUS_COLORS[animal.status] ?? '#9E9E9E' }]} textStyle={styles.chipText}>
+              <Chip compact style={[styles.chip, { backgroundColor: STATUS_COLORS[animal.status] ?? R.textLight }]} textStyle={styles.chipText}>
                 {animal.status}
               </Chip>
               <Chip compact style={styles.countChip} textStyle={styles.countText}>
@@ -116,7 +134,13 @@ function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
               </Chip>
             </View>
           </View>
-          <Button mode="outlined" compact onPress={onLogProduction} style={styles.logBtn}>
+          <Button
+            mode="outlined"
+            compact
+            onPress={onLogProduction}
+            style={styles.logBtn}
+            labelStyle={styles.logBtnLabel}
+          >
             {getProductionLabel(animal)}
           </Button>
         </View>
@@ -151,7 +175,7 @@ function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
             </View>
             <ProgressBar
               progress={progress}
-              color={overdue > 0 ? '#F44336' : '#4CAF50'}
+              color={overdue > 0 ? R.red : R.green}
               style={styles.progressBar}
             />
           </View>
@@ -159,14 +183,24 @@ function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
 
         {/* Care plan summary */}
         {animal.aiGeneratedPlan?.summary && (
-          <Text variant="bodySmall" style={styles.summary} numberOfLines={expanded ? undefined : 2}>
+          <Text
+            variant="bodySmall"
+            style={styles.summary}
+            numberOfLines={expanded ? undefined : 2}
+          >
             {animal.aiGeneratedPlan.summary}
           </Text>
         )}
 
-        <Button mode="text" compact onPress={() => setExpanded(e => !e)} style={styles.expandBtn}>
-          {expanded ? 'Show less' : 'Show details'}
-        </Button>
+        {/* Expand / collapse toggle */}
+        <TouchableOpacity onPress={() => setExpanded(e => !e)} style={styles.expandRow}>
+          <Text style={styles.expandTxt}>{expanded ? 'Show less' : 'Show details'}</Text>
+          <MaterialCommunityIcons
+            name={expanded ? 'chevron-up' : 'chevron-down'}
+            size={18}
+            color={R.expandTxt}
+          />
+        </TouchableOpacity>
 
         {/* Expanded section */}
         {expanded && (
@@ -184,20 +218,20 @@ function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
               <>
                 <Text variant="labelMedium" style={styles.sectionLabel}>Upcoming Tasks</Text>
                 {upcomingTasks.map((task, i) => {
-                  const due = toDate(task.dueDate);
+                  const due       = toDate(task.dueDate);
                   const isOverdue = due < now;
                   return (
                     <List.Item
                       key={task.id ?? i}
                       title={task.title}
                       description={due.toLocaleDateString()}
-                      titleStyle={isOverdue ? styles.overdueTask : undefined}
-                      descriptionStyle={isOverdue ? styles.overdueLabel : undefined}
+                      titleStyle={[styles.taskTitle, isOverdue && styles.overdueTask]}
+                      descriptionStyle={isOverdue ? styles.overdueLabel : styles.taskDesc}
                       left={props => (
                         <List.Icon
                           {...props}
                           icon={isOverdue ? 'alert-circle' : 'calendar-clock'}
-                          color={isOverdue ? '#F44336' : '#4CAF50'}
+                          color={isOverdue ? R.red : R.green}
                         />
                       )}
                       style={styles.taskItem}
@@ -218,7 +252,9 @@ function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
 
             {animal.aiGeneratedPlan?.warnings && animal.aiGeneratedPlan.warnings.length > 0 && (
               <>
-                <Text variant="labelMedium" style={[styles.sectionLabel, { color: '#E65100' }]}>Warnings</Text>
+                <Text variant="labelMedium" style={[styles.sectionLabel, { color: R.amber }]}>
+                  Warnings
+                </Text>
                 {animal.aiGeneratedPlan.warnings.map((w, i) => (
                   <Text key={i} variant="bodySmall" style={styles.warning}>⚠ {w}</Text>
                 ))}
@@ -234,12 +270,12 @@ function AnimalCard({ animal, tasks, onLogProduction }: AnimalCardProps) {
 // ─── Screen ──────────────────────────────────────────────────────────────────
 
 export default function LivestockScreen() {
-  const [animals, setAnimals]     = useState<Animal[]>([]);
-  const [taskMap, setTaskMap]     = useState<Record<string, Task[]>>({});
-  const [loading, setLoading]     = useState(true);
+  const [animals, setAnimals]       = useState<Animal[]>([]);
+  const [taskMap, setTaskMap]       = useState<Record<string, Task[]>>({});
+  const [loading, setLoading]       = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showAddWizard, setShowAddWizard] = useState(false);
-  const [logAnimal, setLogAnimal] = useState<Animal | null>(null);
+  const [logAnimal, setLogAnimal]   = useState<Animal | null>(null);
 
   const loadData = useCallback(async () => {
     try {
@@ -278,7 +314,7 @@ export default function LivestockScreen() {
   if (loading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#4CAF50" />
+        <ActivityIndicator size="large" color={R.green} />
       </View>
     );
   }
@@ -287,7 +323,13 @@ export default function LivestockScreen() {
     <View style={styles.container}>
       <ScrollView
         style={styles.scroll}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={R.green}
+          />
+        }
       >
         <View style={styles.headerRow}>
           <Text variant="titleLarge" style={styles.headerTitle}>My Livestock</Text>
@@ -299,7 +341,7 @@ export default function LivestockScreen() {
         {animals.length === 0 ? (
           <Card style={styles.emptyCard}>
             <Card.Content>
-              <Text variant="titleMedium">No livestock yet</Text>
+              <Text variant="titleMedium" style={styles.emptyTitle}>No livestock yet</Text>
               <Text variant="bodyMedium" style={styles.emptyText}>
                 Tap the + button to add your first animal. The AI will generate a full care plan with feeding, health, and maintenance schedules.
               </Text>
@@ -319,7 +361,13 @@ export default function LivestockScreen() {
         <View style={{ height: 80 }} />
       </ScrollView>
 
-      <FAB icon="plus" style={styles.fab} label="Add Animal" onPress={() => setShowAddWizard(true)} />
+      <FAB
+        icon="cow"
+        style={styles.fab}
+        label="Add Animal"
+        onPress={() => setShowAddWizard(true)}
+        color="#fff"
+      />
 
       <AddAnimalWizard
         visible={showAddWizard}
@@ -345,41 +393,60 @@ export default function LivestockScreen() {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: '#f5f5f5' },
-  scroll:          { flex: 1, padding: 16 },
-  centered:        { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  headerRow:       { marginBottom: 12 },
-  headerTitle:     { fontWeight: 'bold', color: '#1B5E20' },
-  headerSub:       { color: '#666', marginTop: 2 },
-  emptyCard:       { marginBottom: 16 },
-  emptyText:       { color: '#666', marginTop: 8 },
-  animalCard:      { marginBottom: 16, elevation: 2 },
-  cardHeader:      { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
-  iconBlock:       { paddingTop: 2 },
-  cardTitleBlock:  { flex: 1 },
-  animalName:      { fontWeight: 'bold', color: '#1B5E20' },
-  tagRow:          { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
-  typeChip:        { height: 24 },
-  statusChip:      { height: 24 },
-  countChip:       { height: 24, backgroundColor: '#E8F5E9' },
-  chipText:        { color: '#fff', fontSize: 11 },
-  countText:       { color: '#2E7D32', fontSize: 11 },
-  logBtn:          { borderColor: '#4CAF50', alignSelf: 'flex-start' },
-  metaRow:         { flexDirection: 'row', gap: 16, marginTop: 8, flexWrap: 'wrap' },
-  meta:            { color: '#666' },
-  progressBlock:   { marginTop: 12 },
-  progressLabelRow:{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  progressLabel:   { color: '#555' },
-  overdueLabel:    { color: '#F44336' },
-  progressBar:     { height: 6, borderRadius: 3 },
-  summary:         { marginTop: 10, color: '#444', lineHeight: 20 },
-  expandBtn:       { alignSelf: 'flex-start', marginTop: 4 },
-  divider:         { marginVertical: 10 },
-  sectionLabel:    { fontWeight: 'bold', color: '#333', marginTop: 8, marginBottom: 4 },
-  note:            { color: '#555', marginBottom: 4 },
-  taskItem:        { paddingVertical: 0, paddingLeft: 0 },
-  overdueTask:     { color: '#F44336' },
-  tip:             { color: '#444', marginBottom: 4 },
-  warning:         { color: '#E65100', marginBottom: 4 },
-  fab:             { position: 'absolute', margin: 16, right: 0, bottom: 0, backgroundColor: '#4CAF50' },
+  container:        { flex: 1, backgroundColor: R.bg },
+  scroll:           { flex: 1, padding: 16 },
+  centered:         { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: R.bg },
+
+  headerRow:        { marginBottom: 16 },
+  headerTitle:      { fontWeight: 'bold', color: R.titleDark, fontSize: 22 },
+  headerSub:        { color: R.textMid, marginTop: 2 },
+
+  emptyCard:        { backgroundColor: R.card, borderColor: R.cardBorder, borderWidth: 1, marginBottom: 16 },
+  emptyTitle:       { color: R.titleDark },
+  emptyText:        { color: R.textMid, marginTop: 8, lineHeight: 20 },
+
+  animalCard:       { marginBottom: 16, backgroundColor: R.card, borderColor: R.cardBorder, borderWidth: 1, elevation: 1 },
+  cardHeader:       { flexDirection: 'row', alignItems: 'flex-start', gap: 10 },
+  iconBlock:        { paddingTop: 2 },
+  cardTitleBlock:   { flex: 1 },
+  animalName:       { fontWeight: 'bold', color: R.titleDark },
+  tagRow:           { flexDirection: 'row', gap: 6, marginTop: 6, flexWrap: 'wrap' },
+  chip:             { height: 24 },
+  chipText:         { color: '#fff', fontSize: 11 },
+  countChip:        { height: 24, backgroundColor: '#EFEBE9' },
+  countText:        { color: R.titleMid, fontSize: 11 },
+  logBtn:           { borderColor: R.green, alignSelf: 'flex-start' },
+  logBtnLabel:      { color: R.green, fontSize: 12 },
+
+  metaRow:          { flexDirection: 'row', gap: 16, marginTop: 8, flexWrap: 'wrap' },
+  meta:             { color: R.textLight },
+
+  progressBlock:    { marginTop: 12 },
+  progressLabelRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
+  progressLabel:    { color: R.textMid },
+  overdueLabel:     { color: R.red },
+  progressBar:      { height: 6, borderRadius: 3, backgroundColor: '#D7CCC8' },
+
+  summary:          { marginTop: 10, color: R.textMid, lineHeight: 20 },
+
+  expandRow:        { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 2 },
+  expandTxt:        { color: R.expandTxt, fontSize: 13, fontWeight: '500' },
+
+  divider:          { marginVertical: 10, backgroundColor: R.divider },
+  sectionLabel:     { fontWeight: 'bold', color: R.titleMid, marginTop: 8, marginBottom: 4 },
+  note:             { color: R.textMid, marginBottom: 4 },
+  taskItem:         { paddingVertical: 0, paddingLeft: 0, backgroundColor: 'transparent' },
+  taskTitle:        { color: R.titleDark, fontSize: 14 },
+  taskDesc:         { color: R.textLight },
+  overdueTask:      { color: R.red },
+  tip:              { color: R.textMid, marginBottom: 4, lineHeight: 18 },
+  warning:          { color: R.amber, marginBottom: 4, lineHeight: 18 },
+
+  fab: {
+    position: 'absolute',
+    margin: 16,
+    right: 0,
+    bottom: 0,
+    backgroundColor: R.fabBg,
+  },
 });

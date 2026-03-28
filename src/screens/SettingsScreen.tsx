@@ -112,7 +112,7 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
+  container: { flex: 1, backgroundColor: '#F2EAD3' },
   scroll: { flex: 1, padding: 16 },
   card: { marginBottom: 16 },
   sectionTitle: { fontWeight: 'bold', marginBottom: 8 },
